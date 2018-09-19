@@ -120,11 +120,6 @@ training_data <- training_data %>%
   left_join(nO_words) %>% 
   replace(., is.na(.), 0)
 
-#sentiment analysis with afinn
-afinn <- tidy_data %>% 
-  inner_join(get_sentiments('afinn')) %>% 
-  rename(sentiment = score)
-
 #sentiment analysis with nrc
 nrc <- tidy_data %>% 
   inner_join(get_sentiments('nrc')) %>%
