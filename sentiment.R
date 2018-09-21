@@ -127,17 +127,37 @@ nrc <- tidy_data %>%
   spread(sentiment, n, fill = 0)
 
 training_data <- training_data %>% 
-  left_join(nrc) %>% 
-  select(-transcript)
+  left_join(nrc) %>%
+  left_join(total_words) %>%
+  mutate(anger = anger / total_words,
+         anticipation = anticipation / total_words,
+         disgust = disgust / total_words,
+         fear = fear / total_words,
+         joy = joy / total_words,
+         negative = negative / total_words,
+         positive = positive / total_words,
+         sadness = sadness / total_words,
+         surprise = surprise / total_words,
+         trust = trust / total_words) %>%
+  select(-total_words)
 
 #sentiment analysis with afinn
 afinn = tidy_data %>% 
   inner_join(get_sentiments('afinn')) %>% 
   group_by(vlogId) %>% 
-  count() %>% 
-  select(vlogId, n) %>% 
-  rename(sentiment = n)
+  summarise(sentiment = sum(score))
 
 training_data <- training_data %>% 
   left_join(afinn) 
 
+temp1 = 
+  training_data %>%
+  select(-vlogId, - gender,
+         - Extr:-Open) %>%
+  scale()
+
+training_data = 
+  training_data %>%
+  select(vlogId, gender,
+         Extr:Open) %>%
+  cbind(temp1)
