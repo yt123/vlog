@@ -1,9 +1,10 @@
 # Make sure to change this
 setwd("/Users/Apple/Desktop/big data/youtube-personality")
 library(tidyverse)
-library(tidytext)
+library(car)
 library(olsrr)
 library(stringr)
+library(tidytext)
 
 " 
 Read in the CSV file
@@ -139,7 +140,7 @@ training_data <- training_data %>%
          sadness = sadness / total_words,
          surprise = surprise / total_words,
          trust = trust / total_words) %>%
-  select(-total_words)
+  select(-total_words, -transcript)
 
 #sentiment analysis with afinn
 afinn = tidy_data %>% 
@@ -161,3 +162,85 @@ training_data =
   select(vlogId, gender,
          Extr:Open) %>%
   cbind(temp1)
+
+#Agreeableness baseline
+training_data = training_data[,c(2, 4,8:53)]
+A_baseline = lm(Agr ~ ., data = training_data)
+summary(A_baseline)
+
+par(mfrow = c(2,2))
+plot(A_baseline)
+
+#remove multicollinearity
+vif(A_baseline)[vif(A_baseline) > 10]
+modelA2 = update(A_baseline, ~. 
+                -mean.conf.pitch 
+                -mean.spec.entropy
+                -mean.num.apeak
+                -avg.voice.seg
+                -negative
+                -postive)
+summary(modelA2)
+
+#remove variables with p > 0.3
+to_remove = ols_step_backward_p(modelA2)
+paste(to_remove$removed, collapse = " - ")
+modelA3 = update(modelA2, ~.
+                 -mean.d.energy 
+                 -mean.pitch 
+                 -sd.loc.apeak 
+                 -words_nExtraversion 
+                 -words_nOpenness 
+                 -words_nNeuroticism 
+                 -mean.loc.apeak 
+                 -words_Openness 
+                 -avg.len.seg 
+                 -sd.conf.pitch 
+                 -sd.pitch 
+                 -sd.spec.entropy 
+                 -sd.num.apeak 
+                 -hogv.median 
+                 -sd.d.energy 
+                 -mean.energy 
+                 -anticipation 
+                 -joy 
+                 -words_Neuroticism 
+                 -num.turns 
+                 -hogv.entropy 
+                 -hogv.cogR)
+summary(modelA3)
+
+#remove outliers
+outlierTest(modelA3)
+training_data = training_data[-322,]
+modelA4 = update(modelA3)
+summary(modelA4)
+par(mfrow = c(2,2))
+plot(modelA4)
+
+#check linearity
+new_data = 
+  training_data %>%
+  select(Agr, gender, mean.val.apeak, sd.val.apeak,
+         sd.energy, avg.voiced.seg,
+         time.speaking, voice.rate,hogv.cogC,
+         words_Extraversion, words_Agreeableness,
+         words_Conscientiousness, words_nAgreeableness,
+         words_nConscientiousness, anger, disgust, fear,
+         positive, sadness, surprise, trust, sentiment)
+pairs(new_data[,c(1:5)])
+pairs(new_data[,c(1,6:9)])
+pairs(new_data[,c(1,10:13)])
+pairs(new_data[,c(1,14:18)])
+pairs(new_data[,c(1,19:21)])
+
+#fitting a quadratic feature
+modelA5 = update(modelA4, ~. + I(words_Agreeableness**2))
+summary(modelA5)
+
+#interaction
+modelA6 = update(modelA5, ~. + gender:words_nConscientiousness
+              + gender:positive
+              + gender:time.speaking)
+summary(modelA6)
+
