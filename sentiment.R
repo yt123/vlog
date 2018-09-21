@@ -106,7 +106,7 @@ nN_words <- check_words(words_nN) %>%
 nO_words <- check_words(words_nO) %>% 
   rename(words_nOpenness = 'n/total_words')
 
-#putting them bag to the training data
+#putting them back to the training data
 training_data <- training_data %>% 
   left_join(E_words) %>%
   left_join(A_words) %>%
@@ -129,3 +129,15 @@ nrc <- tidy_data %>%
 training_data <- training_data %>% 
   left_join(nrc) %>% 
   select(-transcript)
+
+#sentiment analysis with afinn
+afinn = tidy_data %>% 
+  inner_join(get_sentiments('afinn')) %>% 
+  group_by(vlogId) %>% 
+  count() %>% 
+  select(vlogId, n) %>% 
+  rename(sentiment = n)
+
+training_data <- training_data %>% 
+  left_join(afinn) 
+
